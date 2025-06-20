@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     
     # API
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Splitwise Clone"
+    PROJECT_NAME: str = "Expense tracker"
     VERSION: str = "1.0.0"
     
     # OpenAI
