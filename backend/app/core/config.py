@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/splitwise_db"
+    DATABASE_URL: str = "postgresql://myuser:A9670761970p%@localhost/expense_tracker"
     
     # API
     API_V1_STR: str = "/api/v1"
