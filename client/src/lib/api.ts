@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Group, Expense, Balance, GroupBalance, UserBalance, SplitType, User } from './types';
 
 // Base API URL - should be configured from environment variables in a real app
@@ -55,7 +54,7 @@ export const expensesApi = {
     split_type: SplitType;
     splits: { user_id: number; amount?: number; percentage?: number }[];
   }): Promise<Expense> => {
-    const response = await fetch(`${API_BASE_URL}/expenses/`, {
+    const response = await fetch(`${API_BASE_URL}/groups/${data.group_id}/expenses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -68,7 +67,7 @@ export const expensesApi = {
 export const balancesApi = {
   // Get balances for a group
   getByGroupId: async (groupId: number): Promise<GroupBalance> => {
-    const response = await fetch(`${API_BASE_URL}/balances/${groupId}`);
+    const response = await fetch(`${API_BASE_URL}/groups/${groupId}/balances`);
     return handleResponse(response);
   },
 
