@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useReportStore } from '@/store';
 import { User } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
@@ -61,19 +60,32 @@ const ExpenseChart = ({
     isLoading,
     error,
     generateReports,
-    dateRange,
-    setDateRange
+    dateRange
   } = useReportStore();
   
-  // Generate reports when component mounts or configuration changes
+  // Memoize date range values to prevent unnecessary re-renders
+  const dateRangeStart = useMemo(() => dateRange.start?.getTime() || null, [dateRange.start]);
+  const dateRangeEnd = useMemo(() => dateRange.end?.getTime() || null, [dateRange.end]);
+  
+  // Memoize the generateReports function call
+  const generateReportsCallback = useCallback(() => {
+    generateReports(groupId);
+  }, [generateReports, groupId]);
+  
+  // Generate reports when dimension / group / explicit date range changes.
   useEffect(() => {
-    if (groupId !== undefined) {
-      generateReports(groupId);
-    }
-  }, [groupId, dateRange]); // Remove generateReports from dependencies
+    generateReportsCallback();
+  }, [generateReportsCallback, dateRangeStart, dateRangeEnd]);
+  
+  // Format month label (e.g., "2025-06" to "Jun 2025")
+  const formatMonthLabel = useCallback((monthKey: string) => {
+    const [year, month] = monthKey.split('-');
+    const date = new Date(Number(year), Number(month) - 1);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }, []);
   
   // Format data for the selected dimension
-  const getChartData = () => {
+  const getChartData = useCallback(() => {
     switch (dataDimension) {
       case 'category':
         return Object.entries(expensesByCategory).map(([category, amount]) => ({
@@ -99,17 +111,13 @@ const ExpenseChart = ({
       default:
         return [];
     }
-  };
+  }, [dataDimension, expensesByCategory, expensesByMonth, expensesByUser, users, formatMonthLabel]);
   
-  // Format month label (e.g., "2025-06" to "Jun 2025")
-  const formatMonthLabel = (monthKey: string) => {
-    const [year, month] = monthKey.split('-');
-    const date = new Date(Number(year), Number(month) - 1);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
+  // Memoize chart data to prevent unnecessary recalculations
+  const chartData = useMemo(() => getChartData(), [getChartData]);
   
   // Generate colors for chart elements
-  const getChartColors = () => {
+  const getChartColors = useCallback(() => {
     return [
       '#1cc29f', // Primary teal
       '#8357e6', // Secondary purple
@@ -122,10 +130,10 @@ const ExpenseChart = ({
       '#607d8b', // Blue grey
       '#795548', // Brown
     ];
-  };
+  }, []);
   
   // Custom tooltip formatter
-  const renderTooltip = ({ active, payload, label }: any) => {
+  const renderTooltip = useCallback(({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
@@ -137,14 +145,13 @@ const ExpenseChart = ({
       );
     }
     return null;
-  };
+  }, []);
   
   // Render the appropriate chart based on selected type and dimension
-  const renderChart = () => {
-    const data = getChartData();
+  const renderChart = useCallback(() => {
     const colors = getChartColors();
     
-    if (data.length === 0) {
+    if (chartData.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full">
           <p className="text-gray-500">No data available</p>
@@ -156,7 +163,7 @@ const ExpenseChart = ({
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis 
@@ -174,7 +181,7 @@ const ExpenseChart = ({
           <ResponsiveContainer width="100%" height={height}>
             <PieChart>
               <Pie
-                data={data}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -184,7 +191,7 @@ const ExpenseChart = ({
                 nameKey="name"
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               >
-                {data.map((entry, index) => (
+                {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
@@ -197,7 +204,7 @@ const ExpenseChart = ({
       case 'line':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis 
@@ -219,7 +226,7 @@ const ExpenseChart = ({
       case 'area':
         return (
           <ResponsiveContainer width="100%" height={height}>
-            <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis 
@@ -242,10 +249,7 @@ const ExpenseChart = ({
       default:
         return null;
     }
-  };
-  
-  // Get chart data for use outside renderChart function
-  const chartData = getChartData();
+  }, [chartType, chartData, height, getChartColors, renderTooltip]);
   
   // Loading state
   if (isLoading) {

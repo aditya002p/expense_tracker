@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useExpensesStore, useReportStore, useUserStore } from "@/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { 
@@ -76,18 +76,27 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
   const [chartType, setChartType] = useState<ChartType>("bar");
   const [dataDimension, setDataDimension] = useState<DataDimension>("category");
   
+  // Memoize date range values to prevent unnecessary re-renders
+  const dateRangeStart = useMemo(() => dateRange.start?.getTime() || null, [dateRange.start]);
+  const dateRangeEnd = useMemo(() => dateRange.end?.getTime() || null, [dateRange.end]);
+  
+  // Memoize the generateReports function call
+  const generateReportsCallback = useCallback(() => {
+    generateReports(groupId);
+  }, [generateReports, groupId]);
+  
   // Generate reports when component mounts or filters change
   useEffect(() => {
-    generateReports(groupId);
-  }, [generateReports, groupId, filteredExpenses]);
+    generateReportsCallback();
+  }, [generateReportsCallback, dateRangeStart, dateRangeEnd]);
   
   // Handle date range selection
-  const handleDateRangeChange = (range: { start: Date | null, end: Date | null }) => {
+  const handleDateRangeChange = useCallback((range: { start: Date | null, end: Date | null }) => {
     setDateRange(range);
-  };
+  }, [setDateRange]);
   
   // Handle timeframe selection
-  const handleTimeframeChange = (value: string) => {
+  const handleTimeframeChange = useCallback((value: string) => {
     setTimeframe(value);
     
     const now = new Date();
@@ -116,10 +125,10 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
     }
     
     setDateRange({ start, end: value === "all" ? null : now });
-  };
+  }, [setDateRange]);
   
   // Calculate summary statistics
-  const calculateSummaryStats = () => {
+  const calculateSummaryStats = useCallback(() => {
     if (filteredExpenses.length === 0) {
       return {
         totalAmount: 0,
@@ -164,18 +173,24 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
       expenseCount,
       trend
     };
-  };
+  }, [filteredExpenses, expenses, dateRange.start, dateRange.end]);
+  
+  // Memoize calculated stats
+  const stats = useMemo(() => calculateSummaryStats(), [calculateSummaryStats]);
   
   // Get top spending categories
-  const getTopCategories = () => {
+  const getTopCategories = useCallback(() => {
     return Object.entries(expensesByCategory)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([category, amount]) => ({ category, amount }));
-  };
+  }, [expensesByCategory]);
+  
+  // Memoize top categories
+  const topCategories = useMemo(() => getTopCategories(), [getTopCategories]);
   
   // Get top spenders
-  const getTopSpenders = () => {
+  const getTopSpenders = useCallback(() => {
     return Object.entries(expensesByUser)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -187,10 +202,13 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
           amount
         };
       });
-  };
+  }, [expensesByUser, users, currentUser]);
+  
+  // Memoize top spenders
+  const topSpenders = useMemo(() => getTopSpenders(), [getTopSpenders]);
   
   // Get expense trends
-  const getExpenseTrends = () => {
+  const getExpenseTrends = useCallback(() => {
     return Object.entries(expensesByMonth)
       .sort() // Sort chronologically
       .slice(-6) // Last 6 months
@@ -202,14 +220,16 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
           amount
         };
       });
-  };
+  }, [expensesByMonth]);
+  
+  // Memoize trends
+  const trends = useMemo(() => getExpenseTrends(), [getExpenseTrends]);
   
   // Calculate insights
-  const getInsights = () => {
+  const getInsights = useCallback(() => {
     if (filteredExpenses.length === 0) return [];
     
     const insights: { type: string; message: string }[] = [];
-    const stats = calculateSummaryStats();
     
     // Trend insight
     if (stats.trend !== 0) {
@@ -220,7 +240,6 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
     }
     
     // Top category insight
-    const topCategories = getTopCategories();
     if (topCategories.length > 0) {
       const topCategory = topCategories[0];
       const percentage = (topCategory.amount / stats.totalAmount) * 100;
@@ -257,13 +276,16 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
     }
     
     return insights;
-  };
+  }, [filteredExpenses, stats, topCategories]);
+  
+  // Memoize insights
+  const insights = useMemo(() => getInsights(), [getInsights]);
   
   // Format date for display
-  const formatDateForDisplay = (date: Date | null) => {
+  const formatDateForDisplay = useCallback((date: Date | null) => {
     if (!date) return "Any date";
     return formatDate(date.toISOString(), 'short');
-  };
+  }, []);
   
   // Loading state
   const isLoading = isExpensesLoading || isReportLoading;
@@ -276,13 +298,6 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
       </div>
     );
   }
-  
-  // Get statistics and insights
-  const stats = calculateSummaryStats();
-  const insights = getInsights();
-  const topCategories = getTopCategories();
-  const topSpenders = getTopSpenders();
-  const trends = getExpenseTrends();
   
   return (
     <div className={`space-y-6 ${className}`}>
@@ -330,7 +345,7 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
                     mode="single"
                     selected={dateRange.start || undefined}
                     onSelect={(date) => handleDateRangeChange({
-                      start: date,
+                      start: date || null,
                       end: dateRange.end
                     })}
                     initialFocus
@@ -343,7 +358,7 @@ const ExpenseAnalytics = ({ groupId, className = "" }: ExpenseAnalyticsProps) =>
                     selected={dateRange.end || undefined}
                     onSelect={(date) => handleDateRangeChange({
                       start: dateRange.start,
-                      end: date
+                      end: date || null
                     })}
                     initialFocus
                   />

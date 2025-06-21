@@ -24,7 +24,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function ReportsPage() {
   // Get data from stores
-  const { groups, isLoading: isGroupsLoading } = useGroupsStore();
+  const { groups, isLoading: isGroupsLoading, error: groupsError, fetchGroups } =
+    useGroupsStore();
   const { currentUser } = useUserStore();
   
   // Local state
@@ -32,9 +33,13 @@ export default function ReportsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Simulate loading data when the page loads
+  // Load groups once on mount
   useEffect(() => {
-    // In a real app, you might fetch additional data here
+    // Avoid re-fetch loops by providing an empty dependency list
+    fetchGroups().catch(() => {
+      /* error handled via store */
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle group selection change
@@ -95,6 +100,23 @@ export default function ReportsPage() {
       </div>
 
       {/* Main Content */}
+      {/* ===== Error state for groups loading ===== */}
+      {groupsError && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-red-600 font-medium mb-2">
+            Failed to load groups: {groupsError}
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => fetchGroups()}
+            className="mt-2"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {!groupsError && (
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-3 mb-6">
           <TabsTrigger value="overview" className="flex items-center">
@@ -220,6 +242,7 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      )}
       
       {/* Loading State */}
       {(isGroupsLoading || isRefreshing) && (

@@ -124,7 +124,7 @@ const ChatWidget = () => {
   };
 
   return (
-    <div className="chat-widget">
+    <div className="fixed bottom-6 right-6 z-50">
       {/* Chat Button */}
       {!isOpen && (
         <button

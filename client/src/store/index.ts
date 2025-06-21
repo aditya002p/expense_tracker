@@ -1,7 +1,21 @@
 // src/store/index.ts
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { Group, User, Expense, Balance, UserBalance, GroupBalance, SplitType } from '@/lib/types';
+import {
+  Group,
+  User,
+  Expense,
+  Balance,
+  UserBalance,
+  GroupBalance,
+  SplitType,
+} from "@/lib/types";
+import {
+  usersApi,
+  groupsApi,
+  expensesApi,
+  balancesApi,
+} from "@/lib/api";
 
 // User Store
 interface UserState {
@@ -31,9 +45,7 @@ export const useUserStore = create<UserState>()(
         fetchUsers: async () => {
           try {
             set({ isLoading: true, error: null });
-            // In a real app, this would be an API call
-            const response = await fetch('/api/users');
-            const users = await response.json();
+            const users = await usersApi.getAll();
             set({ users, isLoading: false });
           } catch (error) {
             set({ error: 'Failed to fetch users', isLoading: false });
@@ -79,8 +91,7 @@ export const useGroupsStore = create<GroupsState>()(
       fetchGroups: async () => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch('/groups/');
-          const groups = await response.json();
+          const groups = await groupsApi.getAll();
           set({ groups, isLoading: false });
         } catch (error) {
           set({ error: 'Failed to fetch groups', isLoading: false });
@@ -90,8 +101,7 @@ export const useGroupsStore = create<GroupsState>()(
       fetchGroupById: async (groupId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`/groups/${groupId}`);
-          const group = await response.json();
+          const group = await groupsApi.getById(groupId);
           set({ selectedGroup: group, isLoading: false });
         } catch (error) {
           set({ error: 'Failed to fetch group details', isLoading: false });
@@ -101,19 +111,10 @@ export const useGroupsStore = create<GroupsState>()(
       createGroup: async (name, memberIds) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch('/groups/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name, member_ids: memberIds }),
+          const newGroup = await groupsApi.create({
+            name,
+            member_ids: memberIds,
           });
-          
-          if (!response.ok) {
-            throw new Error('Failed to create group');
-          }
-          
-          const newGroup = await response.json();
           set((state) => ({ 
             groups: [...state.groups, newGroup],
             isLoading: false 
@@ -129,7 +130,7 @@ export const useGroupsStore = create<GroupsState>()(
       addMemberToGroup: async (groupId, userId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`/groups/${groupId}/members`, {
+          const response = await fetch(`/api/groups/${groupId}/members`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -231,8 +232,7 @@ export const useExpensesStore = create<ExpensesState>()(
       fetchExpensesByGroupId: async (groupId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`/groups/${groupId}/expenses`);
-          const expenses = await response.json();
+          const expenses = await expensesApi.getByGroupId(groupId);
           set((state) => ({
             groupExpenses: {
               ...state.groupExpenses,
@@ -248,19 +248,7 @@ export const useExpensesStore = create<ExpensesState>()(
       createExpense: async (expenseData) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch('/expenses/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(expenseData),
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to create expense');
-          }
-          
-          const newExpense = await response.json();
+          const newExpense = await expensesApi.create(expenseData);
           
           // Update expenses in store
           set((state) => {
@@ -362,8 +350,7 @@ export const useBalancesStore = create<BalancesState>()(
       fetchGroupBalance: async (groupId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`/balances/${groupId}`);
-          const balance = await response.json();
+          const balance = await balancesApi.getByGroupId(groupId);
           set((state) => ({
             groupBalances: {
               ...state.groupBalances,
@@ -379,8 +366,7 @@ export const useBalancesStore = create<BalancesState>()(
       fetchUserBalance: async (userId) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`/users/${userId}/balances`);
-          const balance = await response.json();
+          const balance = await balancesApi.getByUserId(userId);
           set({ userBalance: balance, isLoading: false });
         } catch (error) {
           set({ error: 'Failed to fetch user balance', isLoading: false });
