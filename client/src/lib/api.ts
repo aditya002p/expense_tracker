@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Group, Expense, Balance, GroupBalance, UserBalance, SplitType, User } from './types';
 
 // Base API URL - should be configured from environment variables in a real app
