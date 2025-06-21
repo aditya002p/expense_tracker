@@ -62,7 +62,9 @@ export default function Home() {
             <div className="hidden md:block">
               <Image 
                 src="/images/hero-image.svg" 
-                alt="Split expenses with friends" 
+                alt="Split expenses with friends"
+                width={100}
+                height={100}
                 className="w-full h-auto"
                 onError={(e) => {
                   e.currentTarget.src = "https://placehold.co/600x400/e4f9f5/1cc29f?text=Split+expenses+with+friends";
